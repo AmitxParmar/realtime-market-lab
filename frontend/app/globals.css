@@ -1,0 +1,531 @@
+/* ---------------------------------------------------------------------
+   Design direction: a frontend PERFORMANCE LAB, not a trading app.
+   The visual language borrows from oscilloscopes and bench instruments:
+   near-black chassis, hairline borders, monospace readouts for every
+   number, a single cold electric-blue accent for "live" state, amber
+   for warnings, and the standard green/red financial convention used
+   ONLY for price direction (a functional signal, not decoration).
+------------------------------------------------------------------------ */
+
+:root {
+  --bg-void: #090c11;
+  --bg-panel: #10151d;
+  --bg-panel-alt: #151b25;
+  --bg-raised: #1b222d;
+  --border: #232b38;
+  --border-soft: #1a212b;
+
+  --text-primary: #e7ecf3;
+  --text-dim: #7c8797;
+  --text-faint: #4b5563;
+
+  --accent: #4fc3f7;
+  --accent-dim: #2a4a5c;
+  --up: #22c55e;
+  --down: #ef4444;
+  --warn: #f5a623;
+
+  --mono: "SF Mono", "JetBrains Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* -------------------------------------------------- layout shell -- */
+
+.dashboard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-header {
+  padding: 20px 28px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  background:
+    radial-gradient(600px 200px at 15% 0%, rgba(79, 195, 247, 0.08), transparent 70%),
+    var(--bg-void);
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  font-weight: 650;
+}
+
+.dashboard-header h1::before {
+  content: "◉ ";
+  color: var(--accent);
+}
+
+.dashboard-header p {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.dashboard-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1.6fr) 380px;
+  gap: 12px;
+  padding: 16px;
+  align-items: start;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ----------------------------------------------------------- panel -- */
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-panel-alt);
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+.pill {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.empty-state {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.panel-skeleton .skeleton-shimmer {
+  height: 120px;
+  margin: 12px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--bg-panel-alt) 25%, var(--bg-raised) 50%, var(--bg-panel-alt) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* -------------------------------------------------------- watchlist -- */
+
+.search-input {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  width: 160px;
+}
+.search-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.wl-header-row,
+.wl-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr 0.8fr 0.8fr 0.8fr 1fr;
+  align-items: center;
+  padding: 0 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.wl-header-row {
+  height: 28px;
+  color: var(--text-faint);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.wl-row {
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+}
+.wl-row:hover {
+  background: var(--bg-panel-alt);
+}
+.wl-row--selected {
+  background: var(--accent-dim);
+}
+.wl-row--empty {
+  background: repeating-linear-gradient(90deg, var(--bg-panel-alt) 0 40px, transparent 40px 80px);
+}
+
+.wl-cell--symbol {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.wl-cell--vol {
+  color: var(--text-dim);
+}
+
+.wl-scroll {
+  height: 560px;
+  overflow-y: auto;
+}
+.wl-scroll--naive {
+  overflow-y: auto;
+}
+
+.wl-naive-notice {
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--warn);
+  border-top: 1px dashed var(--border);
+}
+
+.text-up {
+  color: var(--up);
+}
+.text-down {
+  color: var(--down);
+}
+
+.flash-up {
+  color: var(--up);
+}
+.flash-down {
+  color: var(--down);
+}
+
+/* ------------------------------------------------------- order book -- */
+
+.ob-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  padding: 8px 0;
+}
+.ob-side {
+  display: flex;
+  flex-direction: column;
+}
+.ob-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.ob-bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+}
+.ob-bar--ask {
+  background: rgba(239, 68, 68, 0.1);
+}
+.ob-bar--bid {
+  background: rgba(34, 197, 94, 0.1);
+}
+.ob-price {
+  position: relative;
+  z-index: 1;
+}
+.ob-row--ask .ob-price {
+  color: var(--down);
+}
+.ob-row--bid .ob-price {
+  color: var(--up);
+}
+.ob-qty {
+  position: relative;
+  z-index: 1;
+  text-align: right;
+  color: var(--text-dim);
+}
+.ob-spread {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 6px 0;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  margin: 2px 0;
+}
+
+/* -------------------------------------------------------- trade feed -- */
+
+.tf-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr 0.7fr 0.6fr;
+  align-items: center;
+  padding: 0 12px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.tf-row--buy .tf-side {
+  color: var(--up);
+}
+.tf-row--sell .tf-side {
+  color: var(--down);
+}
+.tf-symbol {
+  color: var(--text-primary);
+}
+.tf-qty,
+.tf-price {
+  color: var(--text-dim);
+}
+
+/* -------------------------------------------------------------- chart -- */
+
+.chart-canvas {
+  width: 100%;
+  height: 220px;
+  display: block;
+}
+
+/* -------------------------------------------------------------- movers -- */
+
+.movers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 8px 12px;
+}
+.movers-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 6px;
+}
+.movers-title--up {
+  color: var(--up);
+}
+.movers-title--down {
+  color: var(--down);
+}
+.mover-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+.mover-row:hover {
+  color: var(--accent);
+}
+
+/* --------------------------------------------------------- perf panel -- */
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border-soft);
+}
+.metric {
+  background: var(--bg-panel);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.metric--warn .metric-value {
+  color: var(--warn);
+}
+.metric-label {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+.metric-value {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.metric-unit {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: 3px;
+}
+.perf-note {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  padding: 0 12px 10px;
+  margin: 0;
+}
+
+/* --------------------------------------------------------- controls -- */
+
+.control-label {
+  display: block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  padding: 10px 12px 4px;
+}
+.control-label strong {
+  color: var(--text-primary);
+  font-family: var(--mono);
+}
+
+.preset-row {
+  display: flex;
+  gap: 6px;
+  padding: 0 12px 6px;
+  flex-wrap: wrap;
+}
+.chip {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.chip--active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+input[type="range"] {
+  width: calc(100% - 24px);
+  margin: 4px 12px 12px;
+  accent-color: var(--accent);
+}
+
+.mix-row {
+  display: flex;
+  gap: 10px;
+  padding: 0 12px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.scenario-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+}
+.scenario-btn {
+  text-align: left;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 8px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+.scenario-btn--active {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.scenario-btn--active::before {
+  content: "● ";
+  color: var(--accent);
+}
+.scenario-description {
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 0 12px 12px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.toggle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 12px 14px;
+  border-top: 1px solid var(--border-soft);
+  margin-top: 4px;
+  padding-top: 12px;
+}
+.toggle-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.toggle-row input {
+  accent-color: var(--accent);
+}
